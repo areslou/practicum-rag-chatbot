@@ -1,0 +1,76 @@
+[
+  {
+    "id": "q01",
+    "question": "What course do I need to finish before I can enroll in the internship?",
+    "reference": "Undergraduate students must complete SAS3000 before enrolling in the internship.",
+    "expected_keyword": "SAS3000"
+  },
+  {
+    "id": "q02",
+    "question": "Where can I find internship openings?",
+    "reference": "Internship opportunities are posted on LSLINKS, DLSU's career portal.",
+    "expected_keyword": "LSLINKS"
+  },
+  {
+    "id": "q03",
+    "question": "Which kinds of companies should I avoid for my practicum?",
+    "reference": "Avoid companies involved in gambling, tobacco, liquor, or third-party headhunting.",
+    "expected_keyword": "gambling"
+  },
+  {
+    "id": "q04",
+    "question": "Do I need an Institutional MOA if I intern at a DLSU office?",
+    "reference": "No. Interning within a DLSU office does not require an Institutional MOA, so you can skip to applying (Step 3).",
+    "expected_keyword": "DLSU office"
+  },
+  {
+    "id": "q05",
+    "question": "What should I do if my chosen company has no valid IOM?",
+    "reference": "Inform your Department Practicum Coordinator immediately. They coordinate with the SSC Internship Placement Coordinator to draft one.",
+    "expected_keyword": "Internship Placement Coordinator"
+  },
+  {
+    "id": "q06",
+    "question": "How long does it take to process a new IOM?",
+    "reference": "About 14 to 21 business days, including legal review and notarization.",
+    "expected_keyword": "14"
+  },
+  {
+    "id": "q07",
+    "question": "When should I request an IOM?",
+    "reference": "During the term before your internship, to avoid delays.",
+    "expected_keyword": "term before"
+  },
+  {
+    "id": "q08",
+    "question": "Can I start my internship hours while the IOM is still being processed?",
+    "reference": "No. You may apply while the IOM is being processed (if the company allows it), but you cannot start deployment or log hours without a valid IOM, because that violates CHED policy.",
+    "expected_keyword": "CHED"
+  },
+  {
+    "id": "q09",
+    "question": "Who needs to approve the Student MOA and Internship Plan?",
+    "reference": "They are handled by the student and the host company. They do not need SSC or University Legal Counsel approval; the DPC signs only as a witness.",
+    "expected_keyword": "witness"
+  },
+  {
+    "id": "q10",
+    "question": "Is DLSU a party to the MOA for a voluntary internship?",
+    "reference": "No. DLSU is not a party to MOAs for voluntary internships, which are outside the official curriculum, and assumes no liability for incidents during them.",
+    "expected_keyword": "voluntary"
+  },
+  {
+    "id": "q11",
+    "question": "How much is the monthly internship allowance at Globe Telecom?",
+    "reference": null,
+    "expected_keyword": null,
+    "out_of_scope": true
+  },
+  {
+    "id": "q12",
+    "question": "What is the passing grade for the practicum course?",
+    "reference": null,
+    "expected_keyword": null,
+    "out_of_scope": true
+  }
+]

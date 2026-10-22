@@ -1,0 +1,9 @@
+[project]
+name = "practicum-rag-chatbot"
+version = "0.1.0"
+description = "Retrieval-augmented Q&A over DLSU practicum documents (LlamaIndex, Chroma, Gemini, FastAPI)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

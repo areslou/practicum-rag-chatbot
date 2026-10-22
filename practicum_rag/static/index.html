@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practicum Q&amp;A</title>
+<style>
+  :root {
+    --bg: #f5f6f2; --card: #ffffff; --ink: #1c2420; --soft: #5f6b65;
+    --line: #dfe3dc; --accent: #0b6b3a; --accent-ink: #ffffff; --chip: #e8f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121614; --card: #1b201d; --ink: #e8ece9; --soft: #9aa49f;
+      --line: #2c332f; --accent: #3fae73; --accent-ink: #0d1410; --chip: #1f2b24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 120px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: var(--soft); margin: 0 0 20px; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .suggest button { border: 1px solid var(--line); background: var(--card); color: var(--ink);
+                    border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  .msg { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+         padding: 12px 14px; margin: 10px 0; white-space: pre-wrap; }
+  .msg.user { background: var(--chip); border-color: transparent; }
+  .sources { margin-top: 10px; font-size: 13px; color: var(--soft); }
+  .sources details { margin-top: 4px; }
+  .sources summary { cursor: pointer; }
+  .sources p { margin: 4px 0 0 14px; }
+  form { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg);
+         border-top: 1px solid var(--line); padding: 12px 16px; }
+  .row { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
+          background: var(--card); color: var(--ink); font: inherit; }
+  button.send { padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent);
+                color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+</style>
+</head>
+<body>
+<main>
+  <h1>DLSU Practicum Q&amp;A</h1>
+  <p class="sub">Answers come only from the indexed practicum documents, with sources shown below each answer.</p>
+  <div class="suggest" id="suggest">
+    <button type="button">What do I need before enrolling in the internship?</button>
+    <button type="button">How long does a new IOM take?</button>
+    <button type="button">Can I start my hours before the IOM is signed?</button>
+    <button type="button">Which companies should I avoid?</button>
+  </div>
+  <div id="log"></div>
+</main>
+<form id="form">
+  <div class="row">
+    <input id="q" placeholder="Ask about the practicum process..." autocomplete="off" maxlength="500" required>
+    <button class="send" id="send">Ask</button>
+  </div>
+</form>
+<script>
+  const log = document.getElementById("log");
+  const form = document.getElementById("form");
+  const input = document.getElementById("q");
+  const send = document.getElementById("send");
+
+  function bubble(text, cls) {
+    const div = document.createElement("div");
+    div.className = "msg " + (cls || "");
+    div.textContent = text;
+    log.appendChild(div);
+    div.scrollIntoView({ behavior: "smooth", block: "end" });
+    return div;
+  }
+
+  function addSources(div, sources) {
+    if (!sources || !sources.length) return;
+    const box = document.createElement("div");
+    box.className = "sources";
+    sources.forEach((s, i) => {
+      const d = document.createElement("details");
+      const sum = document.createElement("summary");
+      sum.textContent = `[${i + 1}] ${s.file}${s.page ? " p." + s.page : ""}` +
+                        (s.score != null ? ` · score ${s.score}` : "");
+      const p = document.createElement("p");
+      p.textContent = s.text;
+      d.append(sum, p);
+      box.appendChild(d);
+    });
+    div.appendChild(box);
+  }
+
+  async function ask(question) {
+    bubble(question, "user");
+    const pending = bubble("Thinking...");
+    send.disabled = true;
+    try {
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      pending.textContent = data.answer;
+      addSources(pending, data.sources);
+    } catch (err) {
+      pending.textContent = "Error: " + err.message;
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (q.length < 3) return;
+    input.value = "";
+    ask(q);
+  });
+
+  document.getElementById("suggest").addEventListener("click", (e) => {
+    if (e.target.tagName === "BUTTON") ask(e.target.textContent);
+  });
+</script>
+</body>
+</html>
