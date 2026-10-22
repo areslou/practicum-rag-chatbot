@@ -133,8 +133,11 @@ class Throttle:
                     raise
                 delay = parse_retry_seconds(message)
                 if "PerDay" in message or (delay is not None and delay > self.max_wait):
+                    model = re.search(r"model:\s*([\w.-]+)", message)
+                    which = f" for {model.group(1)}" if model else ""
                     raise QuotaExhausted(
-                        f"Daily free-tier limit reached (resets in about {(delay or 0) / 3600:.1f} h)."
+                        f"Daily free-tier limit reached{which} "
+                        f"(resets in about {(delay or 0) / 3600:.1f} h)."
                     ) from exc
                 if attempt == self.max_retries:
                     raise
