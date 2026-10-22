@@ -4,6 +4,7 @@
     python -m practicum_rag.cli ask "Can I start my hours before the IOM is signed?"
     python -m practicum_rag.cli chat
     python -m practicum_rag.cli serve
+    python -m practicum_rag.cli models     # list Gemini models your key can use
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     ask_p = sub.add_parser("ask", help="Ask one question")
     ask_p.add_argument("question")
     sub.add_parser("chat", help="Interactive question loop")
+    sub.add_parser("models", help="List Gemini chat and embedding models available to your key")
     serve_p = sub.add_parser("serve", help="Run the FastAPI server")
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
@@ -45,6 +47,16 @@ def main(argv: list[str] | None = None) -> int:
         report = ingest(settings)
         print(f"Indexed {report.chunks} chunks from {report.documents} documents "
               f"into collection '{report.collection}'.")
+        return 0
+
+    if args.command == "models":
+        from google import genai
+
+        client = genai.Client(api_key=settings.google_api_key or None)
+        for model in client.models.list():
+            actions = ",".join(getattr(model, "supported_actions", None) or [])
+            if "generateContent" in actions or "embedContent" in actions:
+                print(f"{model.name.removeprefix('models/'):45} {actions}")
         return 0
 
     if args.command == "serve":
