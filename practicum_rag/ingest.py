@@ -48,15 +48,14 @@ def load_documents(settings: Settings) -> list[Document]:
     for folder in settings.data_dirs:
         if not folder.exists() or not any(folder.rglob("*")):
             continue
-        reader = SimpleDirectoryReader(
-            input_dir=str(folder),
-            recursive=True,
-            required_exts=SUPPORTED_EXTS,
-            exclude_hidden=True,
-        )
         try:
-            loaded = reader.load_data()
-        except ValueError:  # folder has no supported files
+            loaded = SimpleDirectoryReader(
+                input_dir=str(folder),
+                recursive=True,
+                required_exts=SUPPORTED_EXTS,
+                exclude_hidden=True,
+            ).load_data()
+        except ValueError:  # folder only has hidden or unsupported files
             continue
         for doc in loaded:
             cleaned = clean_text(doc.text)

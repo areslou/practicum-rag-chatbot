@@ -40,6 +40,16 @@ def test_load_documents_reads_sample(offline_env):
     assert any("SAS3000" in d.text for d in docs)
 
 
+def test_folder_with_only_hidden_files_is_skipped(tmp_path, monkeypatch):
+    empty = tmp_path / "private"
+    empty.mkdir()
+    (empty / ".gitkeep").write_text("")
+    monkeypatch.setenv("RAG_OFFLINE", "1")
+    monkeypatch.setenv("RAG_DATA_DIRS", f"{ROOT / 'data' / 'sample'},{empty}")
+    docs = load_documents(get_settings())
+    assert docs and all(d.metadata["file_name"].endswith(".md") for d in docs)
+
+
 def test_ingest_is_idempotent(offline_env):
     first = ingest(offline_env)
     second = ingest(offline_env)
