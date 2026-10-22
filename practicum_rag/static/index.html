@@ -27,6 +27,9 @@
   .msg { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
          padding: 12px 14px; margin: 10px 0; white-space: pre-wrap; }
   .msg.user { background: var(--chip); border-color: transparent; }
+  .msg.answer { white-space: normal; }
+  .msg.answer p { margin: 0 0 8px; }
+  .msg.answer ul { margin: 0 0 8px; padding-left: 20px; }
   .sources { margin-top: 10px; font-size: 13px; color: var(--soft); }
   .sources details { margin-top: 4px; }
   .sources summary { cursor: pointer; }
@@ -74,6 +77,26 @@
     return div;
   }
 
+  // Minimal, safe Markdown: escape everything first, then allow **bold** and bullet lists.
+  function renderMarkdown(text) {
+    const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const lines = esc.split("\n");
+    let html = "", inList = false;
+    for (const raw of lines) {
+      const line = raw.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      const item = line.match(/^\s*[*-]\s+(.*)$/);
+      if (item) {
+        if (!inList) { html += "<ul>"; inList = true; }
+        html += "<li>" + item[1] + "</li>";
+      } else {
+        if (inList) { html += "</ul>"; inList = false; }
+        if (line.trim()) html += "<p>" + line + "</p>";
+      }
+    }
+    if (inList) html += "</ul>";
+    return html;
+  }
+
   function addSources(div, sources) {
     if (!sources || !sources.length) return;
     const box = document.createElement("div");
@@ -107,7 +130,8 @@
       clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
-      pending.textContent = data.answer;
+      pending.classList.add("answer");
+      pending.innerHTML = renderMarkdown(data.answer);
       addSources(pending, data.sources);
     } catch (err) {
       pending.textContent = err.name === "AbortError"
