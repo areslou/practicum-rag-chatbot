@@ -90,7 +90,7 @@ PDF exports sometimes come out letter-spaced (`C h e c k  i f  y o u r`). The in
 `evals/questions.json` holds 12 questions: 10 answerable ones with reference answers and 2 out-of-scope questions the bot should refuse.
 
 ```bash
-python -m evals.run_eval              # full run (uses Gemini as the judge)
+python -m evals.run_eval              # full run, Gemini as judge (~10 min on the free tier)
 python -m evals.run_eval --retrieval  # retrieval only, fast
 ```
 

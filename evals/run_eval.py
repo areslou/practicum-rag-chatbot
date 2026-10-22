@@ -9,7 +9,7 @@ Metrics
 - Refusal rate: for out-of-scope questions, did the bot say it could not find the answer?
 
 Usage:
-    python -m evals.run_eval              # full run with Gemini
+    python -m evals.run_eval              # full run with Gemini (about 10 minutes on the free tier)
     python -m evals.run_eval --retrieval  # retrieval metrics only (fast, no generation)
 """
 
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -36,11 +37,43 @@ def keyword_rank(chunks: list[str], keyword: str) -> int | None:
     return None
 
 
+class Throttle:
+    """Keeps model calls under the free-tier rate limit and waits out quota errors.
+
+    The Gemini free tier allows only a few requests per minute per model, and each
+    question here costs up to 4 calls (answer + 3 judges).
+    """
+
+    def __init__(self, rpm: float, max_retries: int = 6):
+        self.interval = 60.0 / rpm if rpm > 0 else 0.0
+        self.max_retries = max_retries
+        self._last = 0.0
+
+    def call(self, fn, *args, **kwargs):
+        for attempt in range(self.max_retries + 1):
+            wait = self._last + self.interval - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self._last = time.monotonic()
+            try:
+                return fn(*args, **kwargs)
+            except Exception as exc:  # quota or overload errors from the API
+                message = str(exc)
+                if attempt == self.max_retries or not any(
+                    code in message for code in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE")
+                ):
+                    raise
+                match = re.search(r"retry in ([\d.]+)s", message)
+                delay = float(match.group(1)) + 1 if match else 15.0 * (attempt + 1)
+                print(f"  rate-limited, waiting {delay:.0f}s...")
+                time.sleep(delay)
+
+
 def is_refusal(answer: str) -> bool:
     return NOT_FOUND.lower()[:40] in answer.lower() or "couldn't find" in answer.lower()
 
 
-def run(retrieval_only: bool, pause: float) -> dict:
+def run(retrieval_only: bool, rpm: float) -> dict:
     settings = get_settings()
     bot = PracticumBot(settings)
     questions = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))
@@ -59,6 +92,7 @@ def run(retrieval_only: bool, pause: float) -> dict:
             "correctness": CorrectnessEvaluator(llm=bot.llm),
         }
 
+    throttle = Throttle(rpm)
     rows = []
     for q in questions:
         row = {"id": q["id"], "question": q["question"], "out_of_scope": q.get("out_of_scope", False)}
@@ -70,23 +104,23 @@ def run(retrieval_only: bool, pause: float) -> dict:
             row["rr"] = 1 / rank if rank else 0.0
 
         if not retrieval_only:
-            ans = bot.ask(q["question"])
+            ans = throttle.call(bot.ask, q["question"])
             row["answer"] = ans.answer
             contexts = [s.text for s in ans.sources] or retrieved
             if row["out_of_scope"]:
                 row["refused"] = is_refusal(ans.answer)
             elif judges:
-                f = judges["faithfulness"].evaluate(q["question"], ans.answer, contexts)
-                r = judges["relevancy"].evaluate(q["question"], ans.answer, contexts)
-                c = judges["correctness"].evaluate(
-                    q["question"], ans.answer, contexts, reference=q["reference"]
+                f = throttle.call(judges["faithfulness"].evaluate, q["question"], ans.answer, contexts)
+                r = throttle.call(judges["relevancy"].evaluate, q["question"], ans.answer, contexts)
+                c = throttle.call(
+                    judges["correctness"].evaluate,
+                    q["question"], ans.answer, contexts, reference=q["reference"],
                 )
                 row["faithful"] = bool(f.passing)
                 row["relevant"] = bool(r.passing)
                 row["correctness"] = c.score
-            time.sleep(pause)  # stay under free-tier rate limits
         rows.append(row)
-        print(f"{q['id']} done")
+        print(f"{q['id']} done ({len(rows)}/{len(questions)})")
 
     def pct(values: list[bool]) -> float | None:
         return round(100 * mean(values), 1) if values else None
@@ -153,9 +187,12 @@ def write_report(result: dict) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--retrieval", action="store_true", help="Only measure retrieval")
-    parser.add_argument("--pause", type=float, default=4.0, help="Seconds between questions")
+    parser.add_argument(
+        "--rpm", type=float, default=4.5,
+        help="Max model calls per minute (Gemini free tier allows about 5). Use 0 for no limit.",
+    )
     args = parser.parse_args()
-    result = run(retrieval_only=args.retrieval, pause=args.pause)
+    result = run(retrieval_only=args.retrieval, rpm=args.rpm)
     path = write_report(result)
     print(json.dumps(result["summary"], indent=2))
     print(f"\nReport written to {path}")

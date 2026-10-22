@@ -131,3 +131,25 @@ def test_api_reports_busy_model_as_503(offline_env, monkeypatch):
     assert res.status_code == 503
     assert "busy" in res.json()["detail"]
     api.get_bot.cache_clear()
+
+
+def test_throttle_retries_quota_errors(monkeypatch):
+    from evals import run_eval
+
+    monkeypatch.setattr(run_eval.time, "sleep", lambda _s: None)
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise RuntimeError("429 RESOURCE_EXHAUSTED. Please retry in 2.5s.")
+        return "ok"
+
+    assert run_eval.Throttle(rpm=0).call(flaky) == "ok"
+    assert calls["n"] == 3
+
+    def broken():
+        raise ValueError("something else")
+
+    with pytest.raises(ValueError):
+        run_eval.Throttle(rpm=0).call(broken)
