@@ -69,3 +69,11 @@ def ask(req: AskRequest) -> dict:
         return bot.ask(req.question).to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # errors from the Gemini API after its own retries
+        message = str(exc)
+        if any(code in message for code in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED")):
+            raise HTTPException(
+                status_code=503,
+                detail="Gemini is busy or rate-limited right now. Please try again in a few seconds.",
+            ) from exc
+        raise HTTPException(status_code=502, detail=f"Model error: {message[:200]}") from exc

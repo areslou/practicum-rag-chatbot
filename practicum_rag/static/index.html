@@ -96,17 +96,23 @@
     const pending = bubble("Thinking...");
     send.disabled = true;
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 60000);
       const res = await fetch("/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question })
+        body: JSON.stringify({ question }),
+        signal: controller.signal
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
       pending.textContent = data.answer;
       addSources(pending, data.sources);
     } catch (err) {
-      pending.textContent = "Error: " + err.message;
+      pending.textContent = err.name === "AbortError"
+        ? "No answer after 60 seconds. Gemini may be busy; please try again."
+        : "Error: " + err.message;
     } finally {
       send.disabled = false;
       input.focus();

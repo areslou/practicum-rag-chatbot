@@ -8,7 +8,8 @@ from dataclasses import dataclass
 
 import chromadb
 from llama_index.core import Document, SimpleDirectoryReader, StorageContext, VectorStoreIndex
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.node_parser import MarkdownNodeParser, SentenceSplitter
+from llama_index.core.schema import BaseNode
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from .config import Settings
@@ -17,6 +18,11 @@ from .models import build_embed_model
 log = logging.getLogger(__name__)
 
 SUPPORTED_EXTS = [".pdf", ".md", ".txt"]
+
+# Only these metadata fields may reach the embedding or the LLM prompt. Everything else the
+# file reader adds (full path, size, dates) is noise that makes every chunk look alike.
+EMBED_METADATA = {"header_path"}
+LLM_METADATA = {"file_name", "page_label"}
 
 # A line like "C h e c k  i f  y o u r" (letters split by single spaces, words by two or more).
 _SPACED_LINE = re.compile(r"^(?:\S {1,2}){4,}\S?\s*$")
@@ -61,7 +67,28 @@ def load_documents(settings: Settings) -> list[Document]:
             cleaned = clean_text(doc.text)
             if cleaned:
                 docs.append(Document(text=cleaned, metadata=doc.metadata))
+    for doc in docs:
+        _limit_metadata(doc)
     return docs
+
+
+def _limit_metadata(node: BaseNode) -> None:
+    keys = set(node.metadata)
+    node.excluded_embed_metadata_keys = sorted(keys - EMBED_METADATA)
+    node.excluded_llm_metadata_keys = sorted(keys - LLM_METADATA)
+
+
+def split_documents(docs: list[Document], settings: Settings) -> list[BaseNode]:
+    """Split Markdown by headings first so each chunk stays inside one section,
+    then cap every chunk at chunk_size tokens."""
+    splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
+    markdown = [d for d in docs if d.metadata.get("file_name", "").endswith(".md")]
+    others = [d for d in docs if d not in markdown]
+    sections = MarkdownNodeParser().get_nodes_from_documents(markdown) if markdown else []
+    nodes = splitter(sections) + (splitter.get_nodes_from_documents(others) if others else [])
+    for node in nodes:
+        _limit_metadata(node)
+    return nodes
 
 
 @dataclass
@@ -93,8 +120,7 @@ def ingest(settings: Settings) -> IngestReport:
         folders = ", ".join(str(p) for p in settings.data_dirs)
         raise FileNotFoundError(f"No .pdf, .md or .txt files found in: {folders}")
 
-    splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
-    nodes = splitter.get_nodes_from_documents(docs)
+    nodes = split_documents(docs, settings)
 
     vector_store = get_vector_store(settings, reset=True)
     storage = StorageContext.from_defaults(vector_store=vector_store)

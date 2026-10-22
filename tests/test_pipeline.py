@@ -98,3 +98,36 @@ def test_eval_helpers():
     assert keyword_rank(["a", "b"], "z") is None
     assert is_refusal(NOT_FOUND)
     assert not is_refusal("Finish SAS3000 first.")
+
+
+def test_chunks_follow_sections_and_hide_noisy_metadata(offline_env):
+    from llama_index.core.schema import MetadataMode
+
+    from practicum_rag.ingest import split_documents
+
+    nodes = split_documents(load_documents(offline_env), offline_env)
+    prereq = [n for n in nodes if "SAS3000" in n.text]
+    assert len(prereq) == 1
+    assert "prerequisites" in prereq[0].text.lower()
+    assert "Step 1" not in prereq[0].text  # stays inside its own section
+    for node in nodes:
+        embedded = node.get_content(metadata_mode=MetadataMode.EMBED)
+        assert "file_path" not in embedded and "file_size" not in embedded
+        assert "creation_date" not in node.get_content(metadata_mode=MetadataMode.LLM)
+
+
+def test_api_reports_busy_model_as_503(offline_env, monkeypatch):
+    ingest(offline_env)
+    from practicum_rag import api
+
+    api.get_bot.cache_clear()
+    bot = api.get_bot()
+
+    def busy(_question):
+        raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+
+    monkeypatch.setattr(bot, "ask", busy)
+    res = TestClient(api.app).post("/ask", json={"question": "How long does an IOM take?"})
+    assert res.status_code == 503
+    assert "busy" in res.json()["detail"]
+    api.get_bot.cache_clear()
