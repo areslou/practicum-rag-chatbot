@@ -26,7 +26,7 @@ def build_embed_model(settings: Settings) -> BaseEmbedding:
     return GoogleGenAIEmbedding(model_name=settings.embed_model, api_key=settings.google_api_key)
 
 
-def build_llm(settings: Settings) -> LLM:
+def build_llm(settings: Settings, model: str | None = None) -> LLM:
     if settings.offline:
         from llama_index.core.llms import MockLLM
 
@@ -36,8 +36,9 @@ def build_llm(settings: Settings) -> LLM:
     from llama_index.llms.google_genai import GoogleGenAI
 
     kwargs = {"api_key": settings.google_api_key, "temperature": 0.1}
-    if settings.llm_model:
-        kwargs["model"] = settings.llm_model
+    chosen = model or settings.llm_model
+    if chosen:
+        kwargs["model"] = chosen
     return GoogleGenAI(**kwargs)
 
 

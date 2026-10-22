@@ -38,6 +38,9 @@ class Settings:
 
     # Models. Leave RAG_LLM_MODEL empty to use the library's current default Gemini model.
     llm_model: str = field(default_factory=lambda: os.getenv("RAG_LLM_MODEL", ""))
+    # Model used to grade answers in evals. Empty = same as llm_model. Using a different model
+    # spreads the work across two free-tier daily quotas.
+    judge_model: str = field(default_factory=lambda: os.getenv("RAG_JUDGE_MODEL", ""))
     embed_model: str = field(
         default_factory=lambda: os.getenv("RAG_EMBED_MODEL", "gemini-embedding-001")
     )

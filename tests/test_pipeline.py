@@ -153,3 +153,31 @@ def test_throttle_retries_quota_errors(monkeypatch):
 
     with pytest.raises(ValueError):
         run_eval.Throttle(rpm=0).call(broken)
+
+
+def test_parse_retry_seconds_and_judgement():
+    from evals.run_eval import parse_judgement, parse_retry_seconds
+
+    assert parse_retry_seconds("Please retry in 11.2s.") == pytest.approx(11.2)
+    assert parse_retry_seconds("Please retry in 10h20m10.5s.") == pytest.approx(37210.5)
+    assert parse_retry_seconds("no hint here") is None
+
+    reply = '```json\n{"faithful": true, "relevant": false, "correctness": 4, "reason": "ok"}\n```'
+    assert parse_judgement(reply) == {
+        "faithful": True, "relevant": False, "correctness": 4, "judge_reason": "ok",
+    }
+
+
+def test_throttle_stops_on_daily_quota(monkeypatch):
+    from evals import run_eval
+
+    monkeypatch.setattr(run_eval.time, "sleep", lambda _s: None)
+
+    def daily():
+        raise RuntimeError(
+            "429 RESOURCE_EXHAUSTED GenerateRequestsPerDayPerProjectPerModel-FreeTier "
+            "Please retry in 10h20m10s."
+        )
+
+    with pytest.raises(run_eval.QuotaExhausted):
+        run_eval.Throttle(rpm=0).call(daily)

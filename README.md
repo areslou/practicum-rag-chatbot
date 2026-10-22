@@ -90,8 +90,9 @@ PDF exports sometimes come out letter-spaced (`C h e c k  i f  y o u r`). The in
 `evals/questions.json` holds 12 questions: 10 answerable ones with reference answers and 2 out-of-scope questions the bot should refuse.
 
 ```bash
-python -m evals.run_eval              # full run, Gemini as judge (~10 min on the free tier)
+python -m evals.run_eval              # full run
 python -m evals.run_eval --retrieval  # retrieval only, fast
+python -m evals.run_eval --fresh      # ignore saved progress
 ```
 
 | Metric | What it checks |
@@ -99,9 +100,13 @@ python -m evals.run_eval --retrieval  # retrieval only, fast
 | Retrieval hit rate @3 | Did any retrieved chunk contain the fact needed? |
 | MRR | How high the right chunk ranked |
 | Faithfulness | Is every claim in the answer supported by the retrieved text? (hallucination check) |
-| Relevancy | Do the answer and sources actually address the question? |
+| Relevancy | Does the answer address the question? |
 | Correctness (1 to 5) | How close the answer is to the reference answer |
 | Out-of-scope refusal | Does the bot decline instead of guessing? |
+
+Faithfulness, relevancy and correctness come from a single LLM-as-judge call per question, graded by `RAG_JUDGE_MODEL`. Using a different model for grading than for answering spreads the work across two free-tier quotas, and avoids a model grading its own answers.
+
+The Gemini free tier allows only a few requests per minute and a small number per day for each model. The eval paces its calls, waits out short rate limits, saves progress after every question, and stops cleanly at the daily limit. Running it again continues from where it stopped.
 
 Each run writes a report to `evals/results/latest.md`.
 

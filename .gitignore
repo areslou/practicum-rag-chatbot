@@ -7,3 +7,4 @@ storage/
 data/private/*
 !data/private/.gitkeep
 evals/results/latest.json
+evals/results/progress.json
