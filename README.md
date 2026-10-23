@@ -151,3 +151,16 @@ data/private/   your own documents (git-ignored)
 ## Disclaimer
 
 Unofficial student project. Always confirm practicum requirements with your Department Practicum Coordinator.
+
+## Eval results
+
+Run on 12 questions (10 answerable, 2 out-of-scope) with `gemini-3.5-flash`, `gemini-embedding-001`, chunk size 256, top-k 3, judged by `gemini-3.5-flash-lite`.
+
+| Metric | Result |
+|---|---|
+| Retrieval hit rate @3 | 90% |
+| MRR | 0.85 |
+| Faithfulness | 70% |
+| Relevancy | 100% |
+| Correctness (1 to 5) | 3.9 |
+| Out-of-scope refusal | 100% |
